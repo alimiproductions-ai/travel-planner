@@ -29,15 +29,16 @@
 
         .app-container { width: 100%; max-width: 500px; padding-bottom: 50px; }
 
-        /* Stats Grid updated for 3 items */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .stat-card {
             background: var(--glass); backdrop-filter: blur(20px); border-radius: 20px; padding: 12px; text-align: center;
             box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4);
+            display: flex; flex-direction: column; justify-content: center;
         }
-        .stat-card.full { grid-column: span 2; display: flex; justify-content: space-around; align-items: center; }
+        .stat-card.full { grid-column: span 2; flex-direction: row; justify-content: space-around; align-items: center; }
         .stat-label { font-size: 10px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; display: block; }
         .stat-value { font-size: 16px; font-weight: 800; margin-top: 4px; display: block; }
+        .stat-usd { font-size: 12px; font-weight: 600; color: var(--ios-gray); margin-top: 2px; }
 
         .card { background: white; border-radius: 25px; padding: 20px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
         .label-style { font-size: 11px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; margin-bottom: 8px; display: block; }
@@ -73,8 +74,6 @@
         .progress-mini { height: 6px; background: #f2f2f7; border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--ios-green); transition: 0.4s; }
         #cancelEdit { font-size: 12px; color: var(--ios-red); text-align: center; margin-top: 12px; cursor: pointer; display: none; font-weight: 600; }
-        
-        .exchange-rate-box { font-size: 10px; color: var(--ios-gray); text-align: center; margin-top: 10px; opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -96,10 +95,12 @@
         <div class="stat-card">
             <span class="stat-label">Total Perçu</span>
             <span id="totalPaid" class="stat-value" style="color: var(--ios-green)">0 ₪</span>
+            <span id="totalPaidUSD" class="stat-usd">$0</span>
         </div>
         <div class="stat-card">
             <span class="stat-label">Reste à encaisser</span>
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0 ₪</span>
+            <span id="totalRemainingUSD" class="stat-usd">$0</span>
         </div>
     </div>
 
@@ -139,19 +140,19 @@
         render();
     }
 
-    // Formatteur pour afficher ₪ et $ côte à côte
-    function fmtDual(ilsAmount) {
+    // Calcul du dollar
+    function getUsd(ilsAmount) {
         const rate = parseFloat(document.getElementById('usdRate').value) || 3.7;
-        const usdAmount = ilsAmount / rate;
-        
-        const ilsStr = new Intl.NumberFormat('he-IL').format(Math.round(ilsAmount)) + ' ₪';
-        const usdStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.round(usdAmount));
-        
-        return `<span class="price-ils">${ilsStr}</span><span class="price-usd">(${usdStr})</span>`;
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.round(ilsAmount / rate));
     }
 
-    // Formatteur simple pour les totaux en haut
+    // Formatteur ILS simple
     function fmtIls(n) { return new Intl.NumberFormat('he-IL').format(Math.round(n)) + ' ₪'; }
+
+    // Formatteur double pour la liste
+    function fmtDual(ilsAmount) {
+        return `<span class="price-ils">${fmtIls(ilsAmount)}</span><span class="price-usd">(${getUsd(ilsAmount)})</span>`;
+    }
 
     function handleSubmit() {
         const nameInput = document.getElementById('pName');
@@ -173,7 +174,6 @@
         } else {
             participants.push({ id: Date.now(), name, count, paid, price });
         }
-
         resetForm();
         save();
     }
@@ -254,9 +254,17 @@
             listEl.appendChild(div);
         });
 
+        // Mise à jour des Stats avec Dollars
         document.getElementById('totalPax').innerText = totalParticipants;
+        
+        // Total Perçu
         document.getElementById('totalPaid').innerText = fmtIls(totalRecolte);
-        document.getElementById('totalRemaining').innerText = fmtIls(totalDuGlobal - totalRecolte);
+        document.getElementById('totalPaidUSD').innerText = getUsd(totalRecolte);
+
+        // Reste à encaisser
+        const resteGlobal = totalDuGlobal - totalRecolte;
+        document.getElementById('totalRemaining').innerText = fmtIls(resteGlobal);
+        document.getElementById('totalRemainingUSD').innerText = getUsd(resteGlobal);
     }
 
     render();
