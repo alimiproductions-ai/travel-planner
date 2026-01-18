@@ -29,13 +29,15 @@
 
         .app-container { width: 100%; max-width: 500px; padding-bottom: 50px; }
 
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        /* Stats Grid updated for 3 items */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .stat-card {
-            background: var(--glass); backdrop-filter: blur(20px); border-radius: 22px; padding: 15px; text-align: center;
+            background: var(--glass); backdrop-filter: blur(20px); border-radius: 20px; padding: 12px; text-align: center;
             box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4);
         }
+        .stat-card.full { grid-column: span 2; display: flex; justify-content: space-around; align-items: center; }
         .stat-label { font-size: 10px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; display: block; }
-        .stat-value { font-size: 18px; font-weight: 800; margin-top: 5px; display: block; }
+        .stat-value { font-size: 16px; font-weight: 800; margin-top: 4px; display: block; }
 
         .card { background: white; border-radius: 25px; padding: 20px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
         .label-style { font-size: 11px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; margin-bottom: 8px; display: block; }
@@ -63,11 +65,16 @@
         .edit-btn { color: var(--ios-blue); }
         .delete-btn { color: #d1d1d6; }
 
-        .p-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+        .p-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; align-items: center; }
+        .price-ils { font-weight: 700; }
+        .price-usd { font-size: 11px; color: var(--ios-gray); margin-left: 5px; }
+        
         .p-remaining { color: var(--ios-red); font-weight: 700; }
         .progress-mini { height: 6px; background: #f2f2f7; border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--ios-green); transition: 0.4s; }
         #cancelEdit { font-size: 12px; color: var(--ios-red); text-align: center; margin-top: 12px; cursor: pointer; display: none; font-weight: 600; }
+        
+        .exchange-rate-box { font-size: 10px; color: var(--ios-gray); text-align: center; margin-top: 10px; opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -76,6 +83,16 @@
     <h1 style="text-align: center; margin-bottom: 20px;">Uman Payment Manager ✈️</h1>
 
     <div class="stats-grid">
+        <div class="stat-card full">
+            <div>
+                <span class="stat-label">👥 Participants</span>
+                <span id="totalPax" class="stat-value">0</span>
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 20px;">
+                <span class="stat-label">💵 Taux USD</span>
+                <input type="number" id="usdRate" value="3.70" step="0.01" style="width: 60px; padding: 2px; font-size: 12px; text-align: center; border-radius: 5px; border: 1px solid #ddd;" oninput="render()">
+            </div>
+        </div>
         <div class="stat-card">
             <span class="stat-label">Total Perçu</span>
             <span id="totalPaid" class="stat-value" style="color: var(--ios-green)">0 ₪</span>
@@ -101,7 +118,7 @@
                 <input type="number" id="pPaid" value="0">
             </div>
             <div style="grid-column: span 2;">
-                <label class="label-style">Prix unitaire pour ce groupe (₪)</label>
+                <label class="label-style">Prix unitaire (₪)</label>
                 <input type="number" id="tripPrice" value="2500">
             </div>
         </div>
@@ -114,7 +131,6 @@
 </div>
 
 <script>
-    // Chargement des données
     let participants = JSON.parse(localStorage.getItem('uman_data_vFinal')) || [];
     let editingId = null;
 
@@ -123,7 +139,19 @@
         render();
     }
 
-    function fmt(n) { return new Intl.NumberFormat('he-IL').format(Math.round(n)) + ' ₪'; }
+    // Formatteur pour afficher ₪ et $ côte à côte
+    function fmtDual(ilsAmount) {
+        const rate = parseFloat(document.getElementById('usdRate').value) || 3.7;
+        const usdAmount = ilsAmount / rate;
+        
+        const ilsStr = new Intl.NumberFormat('he-IL').format(Math.round(ilsAmount)) + ' ₪';
+        const usdStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.round(usdAmount));
+        
+        return `<span class="price-ils">${ilsStr}</span><span class="price-usd">(${usdStr})</span>`;
+    }
+
+    // Formatteur simple pour les totaux en haut
+    function fmtIls(n) { return new Intl.NumberFormat('he-IL').format(Math.round(n)) + ' ₪'; }
 
     function handleSubmit() {
         const nameInput = document.getElementById('pName');
@@ -136,27 +164,14 @@
         const paid = parseFloat(paidInput.value) || 0;
         const price = parseFloat(priceInput.value) || 2500;
 
-        if (!name) {
-            alert("Merci d'entrer un nom.");
-            return;
-        }
+        if (!name) return alert("Nom requis");
 
         if (editingId) {
-            // Modification
             const idx = participants.findIndex(p => p.id === editingId);
-            if (idx !== -1) {
-                participants[idx] = { ...participants[idx], name, count, paid, price };
-            }
+            if (idx !== -1) participants[idx] = { ...participants[idx], name, count, paid, price };
             editingId = null;
         } else {
-            // Ajout
-            participants.push({
-                id: Date.now(),
-                name: name,
-                count: count,
-                paid: paid,
-                price: price // On enregistre le prix spécifique ici
-            });
+            participants.push({ id: Date.now(), name, count, paid, price });
         }
 
         resetForm();
@@ -166,18 +181,14 @@
     function editEntry(id) {
         const p = participants.find(p => p.id === id);
         if (!p) return;
-
         editingId = id;
         document.getElementById('pName').value = p.name;
         document.getElementById('pCount').value = p.count;
         document.getElementById('pPaid').value = p.paid;
-        // On récupère le prix enregistré pour ce participant (ou 2500 par défaut si ancien enregistrement)
         document.getElementById('tripPrice').value = p.price || 2500;
-
         document.getElementById('formTitle').innerText = "Modifier l'inscription";
-        const btn = document.getElementById('mainBtn');
-        btn.innerText = "Mettre à jour";
-        btn.className = "btn btn-update";
+        document.getElementById('mainBtn').innerText = "Mettre à jour";
+        document.getElementById('mainBtn').className = "btn btn-update";
         document.getElementById('cancelEdit').style.display = "block";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -189,14 +200,13 @@
         document.getElementById('pPaid').value = "0";
         document.getElementById('tripPrice').value = "2500";
         document.getElementById('formTitle').innerText = "Nouvelle Inscription";
-        const btn = document.getElementById('mainBtn');
-        btn.innerText = "Ajouter le groupe";
-        btn.className = "btn btn-add";
+        document.getElementById('mainBtn').innerText = "Ajouter le groupe";
+        document.getElementById('mainBtn').className = "btn btn-add";
         document.getElementById('cancelEdit').style.display = "none";
     }
 
     function deleteEntry(id) {
-        if (confirm("Supprimer cette inscription ?")) {
+        if (confirm("Supprimer ?")) {
             participants = participants.filter(p => p.id !== id);
             save();
         }
@@ -208,13 +218,12 @@
 
         let totalRecolte = 0;
         let totalDuGlobal = 0;
+        let totalParticipants = 0;
 
         listEl.innerHTML = "";
-
         const filtered = participants.filter(p => p.name.toLowerCase().includes(searchQuery));
 
         filtered.slice().reverse().forEach(p => {
-            // Utilisation du prix spécifique à l'entrée (fallback à 2500 pour les anciennes données)
             const unitPrice = p.price || 2500;
             const totalDu = p.count * unitPrice;
             const reste = totalDu - p.paid;
@@ -222,6 +231,7 @@
 
             totalRecolte += p.paid;
             totalDuGlobal += totalDu;
+            totalParticipants += p.count;
 
             const div = document.createElement('div');
             div.className = 'p-item';
@@ -229,26 +239,26 @@
                 <div class="p-header">
                     <div>
                         <div class="p-name">${p.name}</div>
-                        <span class="p-count">${p.count} Voyageur${p.count > 1 ? 's' : ''} (Unit: ${fmt(unitPrice)})</span>
+                        <span class="p-count">${p.count} Pers. × ${fmtIls(unitPrice)}</span>
                     </div>
                     <div class="p-actions">
                         <i class="fa-solid fa-pen-to-square action-btn edit-btn" onclick="editEntry(${p.id})"></i>
                         <i class="fa-solid fa-trash-can action-btn delete-btn" onclick="deleteEntry(${p.id})"></i>
                     </div>
                 </div>
-                <div class="p-row"><span>Total Groupe :</span><span>${fmt(totalDu)}</span></div>
-                <div class="p-row"><span>Payé :</span><span style="color:var(--ios-green); font-weight:700;">${fmt(p.paid)}</span></div>
-                <div class="p-row"><span>Reste :</span><span class="${reste > 0 ? 'p-remaining' : ''}" style="color:${reste <= 0 ? 'var(--ios-green)' : ''}">${reste <= 0 ? 'SOLDÉ' : fmt(reste)}</span></div>
+                <div class="p-row"><span>Total :</span><span>${fmtDual(totalDu)}</span></div>
+                <div class="p-row"><span>Payé :</span><span style="color:var(--ios-green)">${fmtDual(p.paid)}</span></div>
+                <div class="p-row"><span>Reste :</span><span class="${reste > 0 ? 'p-remaining' : ''}" style="color:${reste <= 0 ? 'var(--ios-green)' : ''}">${reste <= 0 ? 'SOLDÉ' : fmtDual(reste)}</span></div>
                 <div class="progress-mini"><div class="progress-fill" style="width:${percent}%"></div></div>
             `;
             listEl.appendChild(div);
         });
 
-        document.getElementById('totalPaid').innerText = fmt(totalRecolte);
-        document.getElementById('totalRemaining').innerText = fmt(totalDuGlobal - totalRecolte);
+        document.getElementById('totalPax').innerText = totalParticipants;
+        document.getElementById('totalPaid').innerText = fmtIls(totalRecolte);
+        document.getElementById('totalRemaining').innerText = fmtIls(totalDuGlobal - totalRecolte);
     }
 
-    // Initialisation
     render();
 </script>
 
