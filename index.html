@@ -31,7 +31,7 @@
         /* Stats Grid */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
         .stat-card {
-            background: var(--glass); backdrop-filter: blur(20px); border-radius: 18px; padding: 10px; text-align: center;
+            background: var(--glass); backdrop-filter: blur(20px); border-radius: 18px; padding: 12px; text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4);
         }
         .stat-card.full { grid-column: span 2; display: flex; justify-content: space-around; align-items: center; }
@@ -91,14 +91,12 @@
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Dépensé (Billets)</span>
+            <span class="stat-label">Frais Billets</span>
             <span id="totalSpent" class="stat-value" style="color: var(--ios-orange)">0</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Frais & Prév. (Détails)</span>
-            <!-- Ce montant affichera Autres Frais + Est. Frais -->
-            <span id="totalFraisPrev" class="stat-value" style="color: var(--ios-red); margin-bottom: 5px;">0</span>
-            <input type="number" id="fraisAVenir" value="0" placeholder="Est. Frais restants" style="width: 100%; border: none; background: #fff1f1; text-align: center; font-size: 11px; padding: 4px; border-radius: 5px;" oninput="render()">
+            <span class="stat-label">Autres Frais (Total)</span>
+            <span id="totalFraisPrev" class="stat-value" style="color: var(--ios-red)">0</span>
         </div>
         <div class="stat-card full highlight">
             <span class="stat-label">Bénéfice Final (Est. tout payé)</span>
@@ -156,19 +154,15 @@
 </div>
 
 <script>
-    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v2')) || [];
-    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v2')) || [];
-    let forecastVal = localStorage.getItem('uman_forecast_final_v2') || 0;
+    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v3')) || [];
+    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v3')) || [];
 
     let editingId = null;
     let editingExpId = null;
 
-    document.getElementById('fraisAVenir').value = forecastVal;
-
     function save() {
-        localStorage.setItem('uman_pax_final_v2', JSON.stringify(participants));
-        localStorage.setItem('uman_exp_final_v2', JSON.stringify(generalExpenses));
-        localStorage.setItem('uman_forecast_final_v2', document.getElementById('fraisAVenir').value);
+        localStorage.setItem('uman_pax_final_v3', JSON.stringify(participants));
+        localStorage.setItem('uman_exp_final_v3', JSON.stringify(generalExpenses));
         render();
     }
 
@@ -317,7 +311,6 @@
     function render() {
         const listEl = document.getElementById('list');
         const search = document.getElementById('search').value.toLowerCase();
-        const futureEstimate = parseFloat(document.getElementById('fraisAVenir').value) || 0;
         
         listEl.innerHTML = "";
         let tPaid = 0, tDue = 0, tPax = 0, tSpentTickets = 0, tOtherExp = 0;
@@ -367,18 +360,15 @@
             listEl.appendChild(div);
         });
 
-        // Calcul des totaux
-        const totalFraisPrevus = tOtherExp + futureEstimate;
-        const beneficeFinal = tDue - (tSpentTickets + totalFraisPrevus);
+        // Calcul final : (Total Dû par les clients) - (Billets + Autres Frais)
+        const beneficeFinal = tDue - (tSpentTickets + tOtherExp);
 
         document.getElementById('totalPax').innerText = tPax;
         document.getElementById('totalPaid').innerHTML = fmtStat(tPaid);
         document.getElementById('totalSpent').innerHTML = fmtStat(tSpentTickets);
         document.getElementById('totalRemaining').innerHTML = fmtStat(tDue - tPaid);
-        document.getElementById('totalFraisPrev').innerHTML = fmtStat(totalFraisPrevus);
+        document.getElementById('totalFraisPrev').innerHTML = fmtStat(tOtherExp);
         document.getElementById('totalProvisional').innerHTML = fmtStat(beneficeFinal);
-        
-        localStorage.setItem('uman_forecast_final_v2', futureEstimate);
     }
 
     function exportToExcel() {
