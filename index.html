@@ -51,7 +51,7 @@
         .btn-update { background: var(--ios-green); color: white; }
         .btn-excel { background: #217346; color: white; }
         
-        /* Participant Items */
+        /* List Items */
         .p-item { background: white; border-radius: 18px; padding: 15px; margin-bottom: 10px; border: 1px solid #f0f0f0; }
         .p-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .p-name { font-size: 16px; font-weight: 700; }
@@ -62,6 +62,8 @@
         .progress-bar { height: 6px; background: #f2f2f7; border-radius: 10px; overflow: hidden; margin-top: 12px; }
         .progress-fill { height: 100%; transition: 0.5s; width: 0%; }
 
+        .price-usd { font-size: 10px; color: var(--ios-gray); margin-left: 4px; font-weight: normal; }
+
         .tab-btn { padding: 8px 12px; border-radius: 10px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; background: rgba(0,0,0,0.05); margin-right: 4px; }
         .tab-btn.active { background: var(--ios-blue); color: white; }
     </style>
@@ -71,17 +73,17 @@
 <div class="app-container">
     <h1 style="text-align: center; margin-bottom: 15px; font-size: 22px;">Uman Manager ✈️</h1>
 
-    <!-- Stats -->
+    <!-- Statistiques -->
     <div class="stats-grid">
         <div class="stat-card full">
-            <div><span class="stat-label">👥 Pax</span><span id="totalPax" class="stat-value">0</span></div>
+            <div><span class="stat-label">👥 Pax Total</span><span id="totalPax" class="stat-value">0</span></div>
             <div style="border-left: 1px solid #ddd; padding-left: 15px;">
                 <span class="stat-label">💵 Taux $</span>
                 <input type="number" id="usdRate" value="3.16" step="0.01" style="width: 55px; padding: 2px; font-size: 11px; text-align: center;" oninput="render()">
             </div>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Perçu</span>
+            <span class="stat-label">Déjà Perçu</span>
             <span id="totalPaid" class="stat-value" style="color: var(--ios-green)">0</span>
         </div>
         <div class="stat-card">
@@ -89,15 +91,17 @@
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Déjà Dépensé</span>
+            <span class="stat-label">Dépensé (Billets)</span>
             <span id="totalSpent" class="stat-value" style="color: var(--ios-orange)">0</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Frais à venir (Est.)</span>
-            <input type="number" id="fraisAVenir" value="0" style="width: 100%; border: none; background: transparent; text-align: center; font-weight: 800; font-size: 13px; color: var(--ios-red);" oninput="render()">
+            <span class="stat-label">Frais & Prév. (Détails)</span>
+            <!-- Ce montant affichera Autres Frais + Est. Frais -->
+            <span id="totalFraisPrev" class="stat-value" style="color: var(--ios-red); margin-bottom: 5px;">0</span>
+            <input type="number" id="fraisAVenir" value="0" placeholder="Est. Frais restants" style="width: 100%; border: none; background: #fff1f1; text-align: center; font-size: 11px; padding: 4px; border-radius: 5px;" oninput="render()">
         </div>
         <div class="stat-card full highlight">
-            <span class="stat-label">Bénéfice Final (Prévisionnel)</span>
+            <span class="stat-label">Bénéfice Final (Est. tout payé)</span>
             <span id="totalProvisional" class="stat-value" style="color: var(--ios-purple); font-size: 18px;">0</span>
         </div>
     </div>
@@ -129,9 +133,9 @@
 
     <!-- Formulaire Autres Frais -->
     <div id="form-exp" class="card" style="display: none;">
-        <span class="label-style" id="expFormTitle">Ajouter une dépense générale</span>
+        <span class="label-style" id="expFormTitle">Ajouter une dépense divers</span>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div style="grid-column: span 2;"><input type="text" id="expName" placeholder="Ex: Bus, Hôtel, Restaurant..."></div>
+            <div style="grid-column: span 2;"><input type="text" id="expName" placeholder="Ex: Location Bus, Hôtel, Repas..."></div>
             <div style="grid-column: span 2;"><label class="label-style">Montant (₪)</label><input type="number" id="expAmount" value="0"></div>
         </div>
         <button id="expBtn" class="btn btn-add" style="background:var(--ios-orange)" onclick="handleExpSubmit()">Ajouter le frais</button>
@@ -141,20 +145,20 @@
     <!-- Import Excel -->
     <div id="form-bulk" class="card" style="display: none;">
         <span class="label-style">Importer un fichier .xlsx</span>
-        <input type="file" id="excelFile" accept=".xlsx, .xls" style="padding: 10px; background: #f0f0f0; border-radius: 10px;">
+        <input type="file" id="excelFile" accept=".xlsx, .xls" style="padding: 10px; background: #f0f0f0; border-radius: 10px; font-size: 11px;">
         <button class="btn btn-excel" onclick="handleExcelImport()">
             <i class="fa-solid fa-upload"></i> Charger les données
         </button>
     </div>
 
-    <input type="text" id="search" placeholder="🔍 Rechercher un nom..." style="width: 100%; padding: 12px; border-radius: 15px; border: none; margin-bottom: 10px;" oninput="render()">
+    <input type="text" id="search" placeholder="🔍 Rechercher un nom..." style="width: 100%; padding: 12px; border-radius: 15px; border: none; margin-bottom: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" oninput="render()">
     <div id="list"></div>
 </div>
 
 <script>
-    let participants = JSON.parse(localStorage.getItem('uman_pax_vFinal')) || [];
-    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_vFinal')) || [];
-    let forecastVal = localStorage.getItem('uman_forecast_vFinal') || 0;
+    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v2')) || [];
+    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v2')) || [];
+    let forecastVal = localStorage.getItem('uman_forecast_final_v2') || 0;
 
     let editingId = null;
     let editingExpId = null;
@@ -162,9 +166,9 @@
     document.getElementById('fraisAVenir').value = forecastVal;
 
     function save() {
-        localStorage.setItem('uman_pax_vFinal', JSON.stringify(participants));
-        localStorage.setItem('uman_exp_vFinal', JSON.stringify(generalExpenses));
-        localStorage.setItem('uman_forecast_vFinal', document.getElementById('fraisAVenir').value);
+        localStorage.setItem('uman_pax_final_v2', JSON.stringify(participants));
+        localStorage.setItem('uman_exp_final_v2', JSON.stringify(generalExpenses));
+        localStorage.setItem('uman_forecast_final_v2', document.getElementById('fraisAVenir').value);
         render();
     }
 
@@ -180,7 +184,13 @@
     function fmtStat(ils) {
         const rate = parseFloat(document.getElementById('usdRate').value) || 3.16;
         const usd = Math.round(ils / rate);
-        return `${Math.round(ils).toLocaleString()} ₪ <small>(${usd.toLocaleString()} $)</small>`;
+        return `${Math.round(ils).toLocaleString()} ₪ <small class="price-usd">(${usd.toLocaleString()} $)</small>`;
+    }
+
+    function fmtList(ils) {
+        const rate = parseFloat(document.getElementById('usdRate').value) || 3.16;
+        const usd = Math.round(ils / rate);
+        return `<b>${Math.round(ils).toLocaleString()} ₪</b> <small class="price-usd">(${usd.toLocaleString()} $)</small>`;
     }
 
     function handleSubmit() {
@@ -231,7 +241,6 @@
 
             let added = 0;
             json.forEach(row => {
-                // Recherche intelligente des colonnes
                 const find = (keys) => {
                     const found = Object.keys(row).find(k => keys.some(key => k.toLowerCase().includes(key.toLowerCase())));
                     return found ? row[found] : null;
@@ -250,7 +259,7 @@
                     added++;
                 }
             });
-            alert(added + " dossiers importés avec toutes leurs données !");
+            alert(added + " dossiers importés !");
             save(); switchTab('pax');
         };
         reader.readAsArrayBuffer(file);
@@ -308,17 +317,18 @@
     function render() {
         const listEl = document.getElementById('list');
         const search = document.getElementById('search').value.toLowerCase();
-        const futureExp = parseFloat(document.getElementById('fraisAVenir').value) || 0;
+        const futureEstimate = parseFloat(document.getElementById('fraisAVenir').value) || 0;
         
         listEl.innerHTML = "";
-        let tPaid = 0, tDue = 0, tPax = 0, tSpent = 0;
+        let tPaid = 0, tDue = 0, tPax = 0, tSpentTickets = 0, tOtherExp = 0;
 
+        // Participants
         participants.filter(p => p.name.toLowerCase().includes(search)).slice().reverse().forEach(p => {
             const total = p.count * p.price;
             const reste = total - p.paid;
             const progress = total > 0 ? (p.paid / total) * 100 : 0;
             
-            tPaid += p.paid; tDue += total; tPax += p.count; tSpent += p.spent;
+            tPaid += p.paid; tDue += total; tPax += p.count; tSpentTickets += p.spent;
 
             const div = document.createElement('div');
             div.className = 'p-item';
@@ -331,20 +341,19 @@
                     </div>
                 </div>
                 <div style="font-size:12px">
-                    <div style="display:flex; justify-content:space-between"><span>Dû:</span><b>${Math.round(total)} ₪</b></div>
-                    <div style="display:flex; justify-content:space-between; color:var(--ios-green)"><span>Perçu:</span><b>${Math.round(p.paid)} ₪</b></div>
-                    <div style="display:flex; justify-content:space-between; color:${reste > 0 ? 'var(--ios-red)' : 'var(--ios-green)'}"><span>Reste:</span><b>${reste <= 0 ? 'SOLDÉ' : Math.round(reste) + ' ₪'}</b></div>
-                    <div style="display:flex; justify-content:space-between; margin-top:4px; opacity:0.7"><span>Frais Billet:</span><span>${p.spent} ₪</span></div>
+                    <div style="display:flex; justify-content:space-between"><span>Dû:</span>${fmtList(total)}</div>
+                    <div style="display:flex; justify-content:space-between; color:var(--ios-green)"><span>Perçu:</span>${fmtList(p.paid)}</div>
+                    <div style="display:flex; justify-content:space-between; color:${reste > 0 ? 'var(--ios-red)' : 'var(--ios-green)'}"><span>Reste:</span>${reste <= 0 ? '<b>SOLDÉ</b>' : fmtList(reste)}</div>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px; opacity:0.7"><span>Frais Billet:</span>${fmtList(p.spent)}</div>
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width:${Math.min(progress, 100)}%; background:${progress >= 100 ? 'var(--ios-green)' : 'var(--ios-blue)'}"></div>
-                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(progress, 100)}%; background:${progress >= 100 ? 'var(--ios-green)' : 'var(--ios-blue)'}"></div></div>
             `;
             listEl.appendChild(div);
         });
 
+        // Autres Frais (Divers)
         generalExpenses.forEach(e => {
-            tSpent += e.amount;
+            tOtherExp += e.amount;
             const div = document.createElement('div');
             div.className = 'p-item';
             div.style.borderLeft = "4px solid var(--ios-orange)";
@@ -353,17 +362,23 @@
                     <div class="p-name" style="font-size:14px;">🛠️ ${e.name}</div>
                     <div class="action-icons"><i class="fa-solid fa-pen edit-icon" onclick="editExpense(${e.id})"></i><i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${e.id}, true)"></i></div>
                 </div>
-                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Montant:</span><b>${Math.round(e.amount)} ₪</b></div>
+                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Montant:</span>${fmtList(e.amount)}</div>
             `;
             listEl.appendChild(div);
         });
 
+        // Calcul des totaux
+        const totalFraisPrevus = tOtherExp + futureEstimate;
+        const beneficeFinal = tDue - (tSpentTickets + totalFraisPrevus);
+
         document.getElementById('totalPax').innerText = tPax;
         document.getElementById('totalPaid').innerHTML = fmtStat(tPaid);
-        document.getElementById('totalSpent').innerHTML = fmtStat(tSpent);
+        document.getElementById('totalSpent').innerHTML = fmtStat(tSpentTickets);
         document.getElementById('totalRemaining').innerHTML = fmtStat(tDue - tPaid);
-        document.getElementById('totalProvisional').innerHTML = fmtStat(tDue - (tSpent + futureExp));
-        localStorage.setItem('uman_forecast_vFinal', futureExp);
+        document.getElementById('totalFraisPrev').innerHTML = fmtStat(totalFraisPrevus);
+        document.getElementById('totalProvisional').innerHTML = fmtStat(beneficeFinal);
+        
+        localStorage.setItem('uman_forecast_final_v2', futureEstimate);
     }
 
     function exportToExcel() {
@@ -373,7 +388,7 @@
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Participants");
-        XLSX.writeFile(wb, "Gestion_Uman_Complet.xlsx");
+        XLSX.writeFile(wb, "Gestion_Uman_Excel.xlsx");
     }
 
     render();
