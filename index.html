@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Uman Payment Manager ✈️</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Bibliothèque pour l'export Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --ios-blue: #007AFF;
             --ios-green: #34C759;
             --ios-red: #FF3B30;
+            --ios-orange: #FF9500;
             --ios-gray: #8e8e93;
             --glass: rgba(255, 255, 255, 0.85);
         }
@@ -33,12 +36,10 @@
         .stat-card {
             background: var(--glass); backdrop-filter: blur(20px); border-radius: 20px; padding: 12px; text-align: center;
             box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4);
-            display: flex; flex-direction: column; justify-content: center;
         }
-        .stat-card.full { grid-column: span 2; flex-direction: row; justify-content: space-around; align-items: center; }
+        .stat-card.full { grid-column: span 2; display: flex; justify-content: space-around; align-items: center; }
         .stat-label { font-size: 10px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; display: block; }
-        .stat-value { font-size: 16px; font-weight: 800; margin-top: 4px; display: block; }
-        .stat-usd { font-size: 12px; font-weight: 600; color: var(--ios-gray); margin-top: 2px; }
+        .stat-value { font-size: 15px; font-weight: 800; margin-top: 4px; display: block; }
 
         .card { background: white; border-radius: 25px; padding: 20px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
         .label-style { font-size: 11px; font-weight: 700; color: var(--ios-gray); text-transform: uppercase; margin-bottom: 8px; display: block; }
@@ -53,6 +54,7 @@
         .btn { width: 100%; padding: 15px; border-radius: 15px; border: none; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; margin-top: 10px; }
         .btn-add { background: var(--ios-blue); color: white; }
         .btn-update { background: var(--ios-green); color: white; }
+        .btn-export { background: #217346; color: white; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .btn:active { transform: scale(0.98); }
 
         .search-bar { width: 100%; padding: 12px 15px; border-radius: 15px; border: none; background: rgba(255,255,255,0.6); margin-bottom: 15px; font-size: 16px; outline: none; }
@@ -74,6 +76,8 @@
         .progress-mini { height: 6px; background: #f2f2f7; border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--ios-green); transition: 0.4s; }
         #cancelEdit { font-size: 12px; color: var(--ios-red); text-align: center; margin-top: 12px; cursor: pointer; display: none; font-weight: 600; }
+        
+        .divider { height: 1px; background: #eee; margin: 8px 0; }
     </style>
 </head>
 <body>
@@ -89,20 +93,31 @@
             </div>
             <div style="border-left: 1px solid #ddd; padding-left: 20px;">
                 <span class="stat-label">💵 Taux USD</span>
-                <input type="number" id="usdRate" value="3.70" step="0.01" style="width: 60px; padding: 2px; font-size: 12px; text-align: center; border-radius: 5px; border: 1px solid #ddd;" oninput="render()">
+                <!-- Taux par défaut : 3.16 -->
+                <input type="number" id="usdRate" value="3.16" step="0.01" style="width: 60px; padding: 2px; font-size: 12px; text-align: center; border-radius: 5px; border: 1px solid #ddd;" oninput="render()">
             </div>
         </div>
         <div class="stat-card">
             <span class="stat-label">Total Perçu</span>
             <span id="totalPaid" class="stat-value" style="color: var(--ios-green)">0 ₪</span>
-            <span id="totalPaidUSD" class="stat-usd">$0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Dépensé (Billets)</span>
+            <span id="totalSpent" class="stat-value" style="color: var(--ios-orange)">0 ₪</span>
         </div>
         <div class="stat-card">
             <span class="stat-label">Reste à encaisser</span>
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0 ₪</span>
-            <span id="totalRemainingUSD" class="stat-usd">$0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Solde Réel (Caisse)</span>
+            <span id="netBalance" class="stat-value" style="color: var(--ios-blue); font-size: 18px;">0 ₪</span>
         </div>
     </div>
+
+    <button class="btn btn-export" onclick="exportToExcel()">
+        <i class="fa-solid fa-file-excel"></i> Exporter vers Excel (.xlsx)
+    </button>
 
     <div class="card">
         <span class="label-style" id="formTitle">Nouvelle Inscription</span>
@@ -118,9 +133,14 @@
                 <label class="label-style">Déjà Payé (₪)</label>
                 <input type="number" id="pPaid" value="0">
             </div>
-            <div style="grid-column: span 2;">
+            <div>
                 <label class="label-style">Prix unitaire (₪)</label>
-                <input type="number" id="tripPrice" value="2500">
+                <!-- Prix par défaut : 2700 -->
+                <input type="number" id="tripPrice" value="2700">
+            </div>
+            <div>
+                <label class="label-style">Dépensé/Billets (₪)</label>
+                <input type="number" id="pSpent" value="0" style="color: var(--ios-orange); font-weight: bold;">
             </div>
         </div>
         <button id="mainBtn" class="btn btn-add" onclick="handleSubmit()">Ajouter le groupe</button>
@@ -132,48 +152,47 @@
 </div>
 
 <script>
-    let participants = JSON.parse(localStorage.getItem('uman_data_vFinal')) || [];
+    let participants = JSON.parse(localStorage.getItem('uman_data_vExpenses')) || [];
     let editingId = null;
 
     function save() {
-        localStorage.setItem('uman_data_vFinal', JSON.stringify(participants));
+        localStorage.setItem('uman_data_vExpenses', JSON.stringify(participants));
         render();
     }
 
-    // Calcul du dollar
-    function getUsd(ilsAmount) {
-        const rate = parseFloat(document.getElementById('usdRate').value) || 3.7;
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.round(ilsAmount / rate));
-    }
-
-    // Formatteur ILS simple
-    function fmtIls(n) { return new Intl.NumberFormat('he-IL').format(Math.round(n)) + ' ₪'; }
-
-    // Formatteur double pour la liste
     function fmtDual(ilsAmount) {
-        return `<span class="price-ils">${fmtIls(ilsAmount)}</span><span class="price-usd">(${getUsd(ilsAmount)})</span>`;
+        const rate = parseFloat(document.getElementById('usdRate').value) || 3.16;
+        const usdAmount = ilsAmount / rate;
+        const ilsStr = new Intl.NumberFormat('he-IL').format(Math.round(ilsAmount)) + ' ₪';
+        const usdStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.round(usdAmount));
+        return `<span class="price-ils">${ilsStr}</span><span class="price-usd">(${usdStr})</span>`;
     }
+
+    function fmtIls(n) { return new Intl.NumberFormat('he-IL').format(Math.round(n)) + ' ₪'; }
 
     function handleSubmit() {
         const nameInput = document.getElementById('pName');
         const countInput = document.getElementById('pCount');
         const paidInput = document.getElementById('pPaid');
         const priceInput = document.getElementById('tripPrice');
+        const spentInput = document.getElementById('pSpent');
 
         const name = nameInput.value.trim();
         const count = parseInt(countInput.value) || 1;
         const paid = parseFloat(paidInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 2500;
+        const price = parseFloat(priceInput.value) || 2700;
+        const spent = parseFloat(spentInput.value) || 0;
 
         if (!name) return alert("Nom requis");
 
         if (editingId) {
             const idx = participants.findIndex(p => p.id === editingId);
-            if (idx !== -1) participants[idx] = { ...participants[idx], name, count, paid, price };
+            if (idx !== -1) participants[idx] = { ...participants[idx], name, count, paid, price, spent };
             editingId = null;
         } else {
-            participants.push({ id: Date.now(), name, count, paid, price });
+            participants.push({ id: Date.now(), name, count, paid, price, spent });
         }
+
         resetForm();
         save();
     }
@@ -185,7 +204,8 @@
         document.getElementById('pName').value = p.name;
         document.getElementById('pCount').value = p.count;
         document.getElementById('pPaid').value = p.paid;
-        document.getElementById('tripPrice').value = p.price || 2500;
+        document.getElementById('tripPrice').value = p.price || 2700;
+        document.getElementById('pSpent').value = p.spent || 0;
         document.getElementById('formTitle').innerText = "Modifier l'inscription";
         document.getElementById('mainBtn').innerText = "Mettre à jour";
         document.getElementById('mainBtn').className = "btn btn-update";
@@ -198,7 +218,8 @@
         document.getElementById('pName').value = "";
         document.getElementById('pCount').value = "1";
         document.getElementById('pPaid').value = "0";
-        document.getElementById('tripPrice').value = "2500";
+        document.getElementById('tripPrice').value = "2700";
+        document.getElementById('pSpent').value = "0";
         document.getElementById('formTitle').innerText = "Nouvelle Inscription";
         document.getElementById('mainBtn').innerText = "Ajouter le groupe";
         document.getElementById('mainBtn').className = "btn btn-add";
@@ -206,10 +227,39 @@
     }
 
     function deleteEntry(id) {
-        if (confirm("Supprimer ?")) {
+        if (confirm("Supprimer ce groupe ?")) {
             participants = participants.filter(p => p.id !== id);
             save();
         }
+    }
+
+    function exportToExcel() {
+        if (participants.length === 0) return alert("Aucune donnée à exporter");
+        
+        const rate = parseFloat(document.getElementById('usdRate').value) || 3.16;
+        
+        // Préparation des données pour Excel
+        const data = participants.map(p => {
+            const totalDu = p.count * (p.price || 2700);
+            return {
+                "Nom / Groupe": p.name,
+                "Nb Personnes": p.count,
+                "Prix Unitaire (₪)": p.price || 2700,
+                "Total Dû (₪)": totalDu,
+                "Perçu (₪)": p.paid,
+                "Reste (₪)": totalDu - p.paid,
+                "Dépensé Billets (₪)": p.spent || 0,
+                "Bénéfice Net (₪)": p.paid - (p.spent || 0),
+                "Total Dû ($)": Math.round(totalDu / rate)
+            };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
+        
+        // Téléchargement du fichier
+        XLSX.writeFile(workbook, "Uman_Payment_Manager.xlsx");
     }
 
     function render() {
@@ -219,19 +269,22 @@
         let totalRecolte = 0;
         let totalDuGlobal = 0;
         let totalParticipants = 0;
+        let totalDepense = 0;
 
         listEl.innerHTML = "";
         const filtered = participants.filter(p => p.name.toLowerCase().includes(searchQuery));
 
         filtered.slice().reverse().forEach(p => {
-            const unitPrice = p.price || 2500;
+            const unitPrice = p.price || 2700;
             const totalDu = p.count * unitPrice;
-            const reste = totalDu - p.paid;
+            const resteAEncaisser = totalDu - p.paid;
+            const depense = p.spent || 0;
             const percent = Math.min((p.paid / totalDu) * 100, 100);
 
             totalRecolte += p.paid;
             totalDuGlobal += totalDu;
             totalParticipants += p.count;
+            totalDepense += depense;
 
             const div = document.createElement('div');
             div.className = 'p-item';
@@ -246,25 +299,21 @@
                         <i class="fa-solid fa-trash-can action-btn delete-btn" onclick="deleteEntry(${p.id})"></i>
                     </div>
                 </div>
-                <div class="p-row"><span>Total :</span><span>${fmtDual(totalDu)}</span></div>
-                <div class="p-row"><span>Payé :</span><span style="color:var(--ios-green)">${fmtDual(p.paid)}</span></div>
-                <div class="p-row"><span>Reste :</span><span class="${reste > 0 ? 'p-remaining' : ''}" style="color:${reste <= 0 ? 'var(--ios-green)' : ''}">${reste <= 0 ? 'SOLDÉ' : fmtDual(reste)}</span></div>
+                <div class="p-row"><span>Total dû :</span><span>${fmtDual(totalDu)}</span></div>
+                <div class="p-row"><span>Perçu :</span><span style="color:var(--ios-green)">${fmtDual(p.paid)}</span></div>
+                <div class="p-row"><span>Reste :</span><span class="${resteAEncaisser > 0 ? 'p-remaining' : ''}" style="color:${resteAEncaisser <= 0 ? 'var(--ios-green)' : ''}">${resteAEncaisser <= 0 ? 'SOLDÉ' : fmtDual(resteAEncaisser)}</span></div>
+                <div class="divider"></div>
+                <div class="p-row"><span style="color:var(--ios-orange); font-weight:600;">Dépensé (Billet...) :</span><span style="color:var(--ios-orange); font-weight:600;">${fmtDual(depense)}</span></div>
                 <div class="progress-mini"><div class="progress-fill" style="width:${percent}%"></div></div>
             `;
             listEl.appendChild(div);
         });
 
-        // Mise à jour des Stats avec Dollars
         document.getElementById('totalPax').innerText = totalParticipants;
-        
-        // Total Perçu
         document.getElementById('totalPaid').innerText = fmtIls(totalRecolte);
-        document.getElementById('totalPaidUSD').innerText = getUsd(totalRecolte);
-
-        // Reste à encaisser
-        const resteGlobal = totalDuGlobal - totalRecolte;
-        document.getElementById('totalRemaining').innerText = fmtIls(resteGlobal);
-        document.getElementById('totalRemainingUSD').innerText = getUsd(resteGlobal);
+        document.getElementById('totalSpent').innerText = fmtIls(totalDepense);
+        document.getElementById('totalRemaining').innerText = fmtIls(totalDuGlobal - totalRecolte);
+        document.getElementById('netBalance').innerText = fmtIls(totalRecolte - totalDepense);
     }
 
     render();
