@@ -50,22 +50,31 @@
         .btn-add { background: var(--ios-blue); color: white; }
         .btn-update { background: var(--ios-green); color: white; }
         .btn-excel { background: #217346; color: white; }
+        .btn-caisse { background: var(--ios-purple); color: white; }
         
         /* List Items */
-        .p-item { background: white; border-radius: 18px; padding: 15px; margin-bottom: 10px; border: 1px solid #f0f0f0; }
+        .p-item { background: white; border-radius: 18px; padding: 15px; margin-bottom: 10px; border: 1px solid #f0f0f0; position: relative; }
         .p-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .p-name { font-size: 16px; font-weight: 700; }
         .action-icons i { cursor: pointer; margin-left: 12px; font-size: 14px; }
         .edit-icon { color: var(--ios-blue); }
         .delete-icon { color: #ddd; }
 
+        .absorbed-tag { 
+            position: absolute; top: -5px; right: 10px; background: var(--ios-purple); color: white; 
+            font-size: 8px; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; font-weight: bold;
+        }
+
         .progress-bar { height: 6px; background: #f2f2f7; border-radius: 10px; overflow: hidden; margin-top: 12px; }
         .progress-fill { height: 100%; transition: 0.5s; width: 0%; }
 
         .price-usd { font-size: 10px; color: var(--ios-gray); margin-left: 4px; font-weight: normal; }
 
-        .tab-btn { padding: 8px 12px; border-radius: 10px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; background: rgba(0,0,0,0.05); margin-right: 4px; }
+        .tab-btn { padding: 8px 10px; border-radius: 10px; border: none; font-size: 10px; font-weight: 600; cursor: pointer; background: rgba(0,0,0,0.05); margin-right: 4px; }
         .tab-btn.active { background: var(--ios-blue); color: white; }
+
+        .check-container { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .check-container input { width: 18px; height: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -78,8 +87,12 @@
         <div class="stat-card full">
             <div><span class="stat-label">👥 Pax Total</span><span id="totalPax" class="stat-value">0</span></div>
             <div style="border-left: 1px solid #ddd; padding-left: 15px;">
+                <span class="stat-label">✨ Absorbés</span>
+                <span id="totalAbsorbed" class="stat-value">0</span>
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 15px;">
                 <span class="stat-label">💵 Taux $</span>
-                <input type="number" id="usdRate" value="3.16" step="0.01" style="width: 55px; padding: 2px; font-size: 11px; text-align: center;" oninput="render()">
+                <input type="number" id="usdRate" value="3.16" step="0.01" style="width: 50px; padding: 2px; font-size: 11px; text-align: center;" oninput="render()">
             </div>
         </div>
         <div class="stat-card">
@@ -90,17 +103,9 @@
             <span class="stat-label">À Encaisser</span>
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0</span>
         </div>
-        <div class="stat-card">
-            <span class="stat-label">Frais Billets</span>
-            <span id="totalSpent" class="stat-value" style="color: var(--ios-orange)">0</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">Autres Frais (Total)</span>
-            <span id="totalFraisPrev" class="stat-value" style="color: var(--ios-red)">0</span>
-        </div>
         <div class="stat-card full highlight">
-            <span class="stat-label">Bénéfice Final (Est. tout payé)</span>
-            <span id="totalProvisional" class="stat-value" style="color: var(--ios-purple); font-size: 18px;">0</span>
+            <span class="stat-label">💰 SOLDE CAISSE (Bénéfice + Apports - Frais)</span>
+            <span id="totalCash" class="stat-value" style="color: var(--ios-purple); font-size: 18px;">0</span>
         </div>
     </div>
 
@@ -109,10 +114,11 @@
     </button>
 
     <!-- Navigation -->
-    <div style="margin-bottom: 10px; display: flex; justify-content: center;">
+    <div style="margin-bottom: 10px; display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">
         <button id="tab1" class="tab-btn active" onclick="switchTab('pax')">Inscriptions</button>
-        <button id="tab2" class="tab-btn" onclick="switchTab('exp')">Autres Frais</button>
-        <button id="tab3" class="tab-btn" onclick="switchTab('bulk')">Import Excel</button>
+        <button id="tab2" class="tab-btn" onclick="switchTab('exp')">Frais</button>
+        <button id="tab4" class="tab-btn" onclick="switchTab('caisse')">Caisse</button>
+        <button id="tab3" class="tab-btn" onclick="switchTab('bulk')">Import</button>
     </div>
 
     <!-- Formulaire Participants -->
@@ -125,11 +131,15 @@
             <div><label class="label-style">Prix U. (₪)</label><input type="number" id="tripPrice" value="2700"></div>
             <div><label class="label-style">Frais Billet (₪)</label><input type="number" id="pSpent" value="0"></div>
         </div>
+        <div class="check-container">
+            <input type="checkbox" id="pAbsorbed">
+            <label for="pAbsorbed" class="label-style" style="margin-bottom:0">Absorbé par la caisse</label>
+        </div>
         <button id="mainBtn" class="btn btn-add" onclick="handleSubmit()">Ajouter</button>
         <div id="cancelEdit" style="text-align:center; color:red; font-size:11px; margin-top:8px; cursor:pointer; display:none;" onclick="resetForm()">Annuler</div>
     </div>
 
-    <!-- Formulaire Autres Frais -->
+    <!-- Formulaire Frais Divers -->
     <div id="form-exp" class="card" style="display: none;">
         <span class="label-style" id="expFormTitle">Ajouter une dépense divers</span>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -138,6 +148,16 @@
         </div>
         <button id="expBtn" class="btn btn-add" style="background:var(--ios-orange)" onclick="handleExpSubmit()">Ajouter le frais</button>
         <div id="cancelExpEdit" style="text-align:center; color:red; font-size:11px; margin-top:8px; cursor:pointer; display:none;" onclick="resetExpForm()">Annuler</div>
+    </div>
+
+    <!-- Formulaire Caisse (Apports) -->
+    <div id="form-caisse" class="card" style="display: none;">
+        <span class="label-style" id="caisseFormTitle">Apport manuel en caisse</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="grid-column: span 2;"><input type="text" id="caisseName" placeholder="Ex: Apport capital, Bonus..."></div>
+            <div style="grid-column: span 2;"><label class="label-style">Montant (₪)</label><input type="number" id="caisseAmount" value="0"></div>
+        </div>
+        <button id="caisseBtn" class="btn btn-caisse" onclick="handleCaisseSubmit()">Ajouter à la caisse</button>
     </div>
 
     <!-- Import Excel -->
@@ -150,29 +170,36 @@
     </div>
 
     <input type="text" id="search" placeholder="🔍 Rechercher un nom..." style="width: 100%; padding: 12px; border-radius: 15px; border: none; margin-bottom: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" oninput="render()">
+    
     <div id="list"></div>
 </div>
 
 <script>
-    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v3')) || [];
-    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v3')) || [];
+    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v4')) || [];
+    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v4')) || [];
+    let caisseEntries = JSON.parse(localStorage.getItem('uman_caisse_final_v4')) || [];
 
     let editingId = null;
     let editingExpId = null;
 
     function save() {
-        localStorage.setItem('uman_pax_final_v3', JSON.stringify(participants));
-        localStorage.setItem('uman_exp_final_v3', JSON.stringify(generalExpenses));
+        localStorage.setItem('uman_pax_final_v4', JSON.stringify(participants));
+        localStorage.setItem('uman_exp_final_v4', JSON.stringify(generalExpenses));
+        localStorage.setItem('uman_caisse_final_v4', JSON.stringify(caisseEntries));
         render();
     }
 
     function switchTab(type) {
         document.getElementById('form-pax').style.display = type === 'pax' ? 'block' : 'none';
         document.getElementById('form-exp').style.display = type === 'exp' ? 'block' : 'none';
+        document.getElementById('form-caisse').style.display = type === 'caisse' ? 'block' : 'none';
         document.getElementById('form-bulk').style.display = type === 'bulk' ? 'block' : 'none';
-        document.getElementById('tab1').className = type === 'pax' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('tab2').className = type === 'exp' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('tab3').className = type === 'bulk' ? 'tab-btn active' : 'tab-btn';
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        if(type === 'pax') document.getElementById('tab1').classList.add('active');
+        if(type === 'exp') document.getElementById('tab2').classList.add('active');
+        if(type === 'bulk') document.getElementById('tab3').classList.add('active');
+        if(type === 'caisse') document.getElementById('tab4').classList.add('active');
     }
 
     function fmtStat(ils) {
@@ -193,15 +220,16 @@
         const paid = parseFloat(document.getElementById('pPaid').value) || 0;
         const price = parseFloat(document.getElementById('tripPrice').value) || 2700;
         const spent = parseFloat(document.getElementById('pSpent').value) || 0;
+        const absorbed = document.getElementById('pAbsorbed').checked;
 
         if (!name) return alert("Nom requis");
 
         if (editingId) {
             const idx = participants.findIndex(p => p.id === editingId);
-            participants[idx] = { ...participants[idx], name, count, paid, price, spent };
+            participants[idx] = { ...participants[idx], name, count, paid, price, spent, absorbed };
             editingId = null;
         } else {
-            participants.push({ id: Date.now(), name, count, paid, price, spent });
+            participants.push({ id: Date.now(), name, count, paid, price, spent, absorbed });
         }
         resetForm(); save();
     }
@@ -221,47 +249,21 @@
         resetExpForm(); save();
     }
 
-    function handleExcelImport() {
-        const fileInput = document.getElementById('excelFile');
-        const file = fileInput.files[0];
-        if (!file) return alert("Choisis un fichier !");
+    function handleCaisseSubmit() {
+        const name = document.getElementById('caisseName').value.trim();
+        const amount = parseFloat(document.getElementById('caisseAmount').value) || 0;
+        if (!name) return;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet);
-
-            let added = 0;
-            json.forEach(row => {
-                const find = (keys) => {
-                    const found = Object.keys(row).find(k => keys.some(key => k.toLowerCase().includes(key.toLowerCase())));
-                    return found ? row[found] : null;
-                };
-
-                const name = find(["groupe", "nom", "responsable", "client"]);
-                if (name) {
-                    participants.push({
-                        id: Date.now() + Math.random(),
-                        name: name.toString(),
-                        count: parseInt(find(["pax", "personne", "nb", "nombre"])) || 1,
-                        paid: parseFloat(find(["perçu", "payé", "acompte", "reçu"])) || 0,
-                        price: parseFloat(find(["prix", "tarif", "unitaire"])) || 2700,
-                        spent: parseFloat(find(["billet", "frais", "dépensé", "spent", "coût"])) || 0
-                    });
-                    added++;
-                }
-            });
-            alert(added + " dossiers importés !");
-            save(); switchTab('pax');
-        };
-        reader.readAsArrayBuffer(file);
+        caisseEntries.push({ id: Date.now(), name, amount });
+        document.getElementById('caisseName').value = "";
+        document.getElementById('caisseAmount').value = "0";
+        save();
     }
 
-    function deleteEntry(id, isExp = false) {
+    function deleteEntry(id, type) {
         if (!confirm("Supprimer ?")) return;
-        if (isExp) generalExpenses = generalExpenses.filter(e => e.id !== id);
+        if (type === 'exp') generalExpenses = generalExpenses.filter(e => e.id !== id);
+        else if (type === 'caisse') caisseEntries = caisseEntries.filter(c => c.id !== id);
         else participants = participants.filter(p => p.id !== id);
         save();
     }
@@ -274,26 +276,17 @@
         document.getElementById('pPaid').value = p.paid;
         document.getElementById('tripPrice').value = p.price;
         document.getElementById('pSpent').value = p.spent;
+        document.getElementById('pAbsorbed').checked = p.absorbed || false;
         document.getElementById('formTitle').innerText = "Modifier l'inscription";
         document.getElementById('mainBtn').innerText = "Mettre à jour";
         document.getElementById('cancelEdit').style.display = "block";
         switchTab('pax'); window.scrollTo(0,0);
     }
 
-    function editExpense(id) {
-        const e = generalExpenses.find(ex => ex.id === id);
-        editingExpId = id;
-        document.getElementById('expName').value = e.name;
-        document.getElementById('expAmount').value = e.amount;
-        document.getElementById('expFormTitle').innerText = "Modifier le frais";
-        document.getElementById('expBtn').innerText = "Mettre à jour";
-        document.getElementById('cancelExpEdit').style.display = "block";
-        switchTab('exp'); window.scrollTo(0,0);
-    }
-
     function resetForm() {
         editingId = null;
         document.getElementById('pName').value = "";
+        document.getElementById('pAbsorbed').checked = false;
         document.getElementById('formTitle').innerText = "Nouvelle Inscription";
         document.getElementById('mainBtn').innerText = "Ajouter";
         document.getElementById('cancelEdit').style.display = "none";
@@ -313,38 +306,49 @@
         const search = document.getElementById('search').value.toLowerCase();
         
         listEl.innerHTML = "";
-        let tPaid = 0, tDue = 0, tPax = 0, tSpentTickets = 0, tOtherExp = 0;
+        let tPaid = 0, tDue = 0, tPax = 0, tAbsorbed = 0, tSpentTickets = 0, tOtherExp = 0, tCaisseAdd = 0, tAbsorbedCost = 0;
 
         // Participants
         participants.filter(p => p.name.toLowerCase().includes(search)).slice().reverse().forEach(p => {
             const total = p.count * p.price;
-            const reste = total - p.paid;
-            const progress = total > 0 ? (p.paid / total) * 100 : 0;
-            
-            tPaid += p.paid; tDue += total; tPax += p.count; tSpentTickets += p.spent;
+            let displayPaid = p.paid;
+            let reste = total - p.paid;
 
+            if(p.absorbed) {
+                tAbsorbed += p.count;
+                tAbsorbedCost += total;
+                displayPaid = total; // Dans l'affichage, on considère que c'est payé
+                reste = 0;
+            }
+
+            tPaid += p.paid; 
+            tDue += total; 
+            tPax += p.count; 
+            tSpentTickets += p.spent;
+
+            const progress = total > 0 ? (displayPaid / total) * 100 : 0;
             const div = document.createElement('div');
             div.className = 'p-item';
             div.innerHTML = `
+                ${p.absorbed ? '<div class="absorbed-tag">Absorbé par caisse</div>' : ''}
                 <div class="p-header">
                     <div><div class="p-name">${p.name}</div><span style="font-size:11px;color:var(--ios-blue)">${p.count} Pax @ ${p.price}₪</span></div>
                     <div class="action-icons">
                         <i class="fa-solid fa-pen edit-icon" onclick="editEntry(${p.id})"></i>
-                        <i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${p.id})"></i>
+                        <i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${p.id}, 'pax')"></i>
                     </div>
                 </div>
                 <div style="font-size:12px">
                     <div style="display:flex; justify-content:space-between"><span>Dû:</span>${fmtList(total)}</div>
-                    <div style="display:flex; justify-content:space-between; color:var(--ios-green)"><span>Perçu:</span>${fmtList(p.paid)}</div>
+                    <div style="display:flex; justify-content:space-between; color:var(--ios-green)"><span>Perçu:</span>${p.absorbed ? '<b>CAISSE</b>' : fmtList(p.paid)}</div>
                     <div style="display:flex; justify-content:space-between; color:${reste > 0 ? 'var(--ios-red)' : 'var(--ios-green)'}"><span>Reste:</span>${reste <= 0 ? '<b>SOLDÉ</b>' : fmtList(reste)}</div>
-                    <div style="display:flex; justify-content:space-between; margin-top:4px; opacity:0.7"><span>Frais Billet:</span>${fmtList(p.spent)}</div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(progress, 100)}%; background:${progress >= 100 ? 'var(--ios-green)' : 'var(--ios-blue)'}"></div></div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(progress, 100)}%; background:${p.absorbed ? 'var(--ios-purple)' : (progress >= 100 ? 'var(--ios-green)' : 'var(--ios-blue)')}"></div></div>
             `;
             listEl.appendChild(div);
         });
 
-        // Autres Frais (Divers)
+        // Autres Frais
         generalExpenses.forEach(e => {
             tOtherExp += e.amount;
             const div = document.createElement('div');
@@ -353,32 +357,84 @@
             div.innerHTML = `
                 <div class="p-header">
                     <div class="p-name" style="font-size:14px;">🛠️ ${e.name}</div>
-                    <div class="action-icons"><i class="fa-solid fa-pen edit-icon" onclick="editExpense(${e.id})"></i><i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${e.id}, true)"></i></div>
+                    <div class="action-icons"><i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${e.id}, 'exp')"></i></div>
                 </div>
-                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Montant:</span>${fmtList(e.amount)}</div>
+                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Dépense:</span>${fmtList(e.amount)}</div>
             `;
             listEl.appendChild(div);
         });
 
-        // Calcul final : (Total Dû par les clients) - (Billets + Autres Frais)
-        const beneficeFinal = tDue - (tSpentTickets + tOtherExp);
+        // Entrées Caisse manuelle
+        caisseEntries.forEach(c => {
+            tCaisseAdd += c.amount;
+            const div = document.createElement('div');
+            div.className = 'p-item';
+            div.style.borderLeft = "4px solid var(--ios-purple)";
+            div.innerHTML = `
+                <div class="p-header">
+                    <div class="p-name" style="font-size:14px;">💰 ${c.name}</div>
+                    <div class="action-icons"><i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${c.id}, 'caisse')"></i></div>
+                </div>
+                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Apport:</span>${fmtList(c.amount)}</div>
+            `;
+            listEl.appendChild(div);
+        });
+
+        // CALCUL DE LA CAISSE :
+        // (Total que les clients doivent payer) - (Ce que ça coûte en billets) - (Frais divers) + (Apports manuels) - (Coût des absorbés)
+        const beneficeTheorique = tDue - tSpentTickets - tOtherExp;
+        const soldeCaisse = beneficeTheorique + tCaisseAdd - tAbsorbedCost;
 
         document.getElementById('totalPax').innerText = tPax;
+        document.getElementById('totalAbsorbed').innerText = tAbsorbed;
         document.getElementById('totalPaid').innerHTML = fmtStat(tPaid);
-        document.getElementById('totalSpent').innerHTML = fmtStat(tSpentTickets);
-        document.getElementById('totalRemaining').innerHTML = fmtStat(tDue - tPaid);
-        document.getElementById('totalFraisPrev').innerHTML = fmtStat(tOtherExp);
-        document.getElementById('totalProvisional').innerHTML = fmtStat(beneficeFinal);
+        document.getElementById('totalRemaining').innerHTML = fmtStat(tDue - tPaid - tAbsorbedCost);
+        document.getElementById('totalCash').innerHTML = fmtStat(soldeCaisse);
     }
 
     function exportToExcel() {
         const data = participants.map(p => ({
-            "Groupe": p.name, "Pax": p.count, "Prix Unitaire": p.price, "Total Dû": p.count * p.price, "Perçu": p.paid, "Frais Billets": p.spent, "Reste": (p.count * p.price) - p.paid
+            "Groupe": p.name, "Pax": p.count, "Prix Unitaire": p.price, "Total Dû": p.count * p.price, 
+            "Perçu": p.paid, "Absorbé": p.absorbed ? "OUI" : "NON", "Frais Billets": p.spent
         }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Participants");
-        XLSX.writeFile(wb, "Gestion_Uman_Excel.xlsx");
+        XLSX.writeFile(wb, "Gestion_Uman_Caisse.xlsx");
+    }
+
+    // Garder la fonction Import Excel telle quelle
+    function handleExcelImport() {
+        const fileInput = document.getElementById('excelFile');
+        const file = fileInput.files[0];
+        if (!file) return alert("Choisis un fichier !");
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+            json.forEach(row => {
+                const find = (keys) => {
+                    const found = Object.keys(row).find(k => keys.some(key => k.toLowerCase().includes(key.toLowerCase())));
+                    return found ? row[found] : null;
+                };
+                const name = find(["groupe", "nom", "responsable", "client"]);
+                if (name) {
+                    participants.push({
+                        id: Date.now() + Math.random(),
+                        name: name.toString(),
+                        count: parseInt(find(["pax", "personne", "nb", "nombre"])) || 1,
+                        paid: parseFloat(find(["perçu", "payé", "acompte", "reçu"])) || 0,
+                        price: parseFloat(find(["prix", "tarif", "unitaire"])) || 2700,
+                        spent: parseFloat(find(["billet", "frais", "dépensé", "spent", "coût"])) || 0,
+                        absorbed: false
+                    });
+                }
+            });
+            save(); switchTab('pax');
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     render();
