@@ -84,6 +84,7 @@
 
     <!-- Statistiques -->
     <div class="stats-grid">
+        <!-- Ligne 1: Pax et Taux -->
         <div class="stat-card full">
             <div><span class="stat-label">👥 Pax Total</span><span id="totalPax" class="stat-value">0</span></div>
             <div style="border-left: 1px solid #ddd; padding-left: 15px;">
@@ -95,6 +96,8 @@
                 <input type="number" id="usdRate" value="3.16" step="0.01" style="width: 50px; padding: 2px; font-size: 11px; text-align: center;" oninput="render()">
             </div>
         </div>
+        
+        <!-- Ligne 2: Encaissements -->
         <div class="stat-card">
             <span class="stat-label">Déjà Perçu</span>
             <span id="totalPaid" class="stat-value" style="color: var(--ios-green)">0</span>
@@ -103,8 +106,20 @@
             <span class="stat-label">À Encaisser</span>
             <span id="totalRemaining" class="stat-value" style="color: var(--ios-red)">0</span>
         </div>
+
+        <!-- Ligne 3: Dépenses -->
+        <div class="stat-card">
+            <span class="stat-label">Frais Billets</span>
+            <span id="totalSpentTickets" class="stat-value" style="color: var(--ios-orange)">0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Autres Frais</span>
+            <span id="totalOtherExp" class="stat-value" style="color: var(--ios-red)">0</span>
+        </div>
+
+        <!-- Ligne 4: Résultat -->
         <div class="stat-card full highlight">
-            <span class="stat-label">💰 SOLDE CAISSE (Bénéfice + Apports - Frais)</span>
+            <span class="stat-label">💰 SOLDE FINAL (Bénéfice Réel)</span>
             <span id="totalCash" class="stat-value" style="color: var(--ios-purple); font-size: 18px;">0</span>
         </div>
     </div>
@@ -116,8 +131,8 @@
     <!-- Navigation -->
     <div style="margin-bottom: 10px; display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">
         <button id="tab1" class="tab-btn active" onclick="switchTab('pax')">Inscriptions</button>
-        <button id="tab2" class="tab-btn" onclick="switchTab('exp')">Frais</button>
-        <button id="tab4" class="tab-btn" onclick="switchTab('caisse')">Caisse</button>
+        <button id="tab2" class="tab-btn" onclick="switchTab('exp')">Dépenses Divers</button>
+        <button id="tab4" class="tab-btn" onclick="switchTab('caisse')">Apports Caisse</button>
         <button id="tab3" class="tab-btn" onclick="switchTab('bulk')">Import</button>
     </div>
 
@@ -133,7 +148,7 @@
         </div>
         <div class="check-container">
             <input type="checkbox" id="pAbsorbed">
-            <label for="pAbsorbed" class="label-style" style="margin-bottom:0">Absorbé par la caisse</label>
+            <label for="pAbsorbed" class="label-style" style="margin-bottom:0">Passager absorbé (offert)</label>
         </div>
         <button id="mainBtn" class="btn btn-add" onclick="handleSubmit()">Ajouter</button>
         <div id="cancelEdit" style="text-align:center; color:red; font-size:11px; margin-top:8px; cursor:pointer; display:none;" onclick="resetForm()">Annuler</div>
@@ -147,14 +162,13 @@
             <div style="grid-column: span 2;"><label class="label-style">Montant (₪)</label><input type="number" id="expAmount" value="0"></div>
         </div>
         <button id="expBtn" class="btn btn-add" style="background:var(--ios-orange)" onclick="handleExpSubmit()">Ajouter le frais</button>
-        <div id="cancelExpEdit" style="text-align:center; color:red; font-size:11px; margin-top:8px; cursor:pointer; display:none;" onclick="resetExpForm()">Annuler</div>
     </div>
 
     <!-- Formulaire Caisse (Apports) -->
     <div id="form-caisse" class="card" style="display: none;">
-        <span class="label-style" id="caisseFormTitle">Apport manuel en caisse</span>
+        <span class="label-style">Apport manuel / Bonus</span>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div style="grid-column: span 2;"><input type="text" id="caisseName" placeholder="Ex: Apport capital, Bonus..."></div>
+            <div style="grid-column: span 2;"><input type="text" id="caisseName" placeholder="Ex: Apport personnel, Gain divers..."></div>
             <div style="grid-column: span 2;"><label class="label-style">Montant (₪)</label><input type="number" id="caisseAmount" value="0"></div>
         </div>
         <button id="caisseBtn" class="btn btn-caisse" onclick="handleCaisseSubmit()">Ajouter à la caisse</button>
@@ -175,17 +189,16 @@
 </div>
 
 <script>
-    let participants = JSON.parse(localStorage.getItem('uman_pax_final_v4')) || [];
-    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_final_v4')) || [];
-    let caisseEntries = JSON.parse(localStorage.getItem('uman_caisse_final_v4')) || [];
+    let participants = JSON.parse(localStorage.getItem('uman_pax_v5')) || [];
+    let generalExpenses = JSON.parse(localStorage.getItem('uman_exp_v5')) || [];
+    let caisseEntries = JSON.parse(localStorage.getItem('uman_caisse_v5')) || [];
 
     let editingId = null;
-    let editingExpId = null;
 
     function save() {
-        localStorage.setItem('uman_pax_final_v4', JSON.stringify(participants));
-        localStorage.setItem('uman_exp_final_v4', JSON.stringify(generalExpenses));
-        localStorage.setItem('uman_caisse_final_v4', JSON.stringify(caisseEntries));
+        localStorage.setItem('uman_pax_v5', JSON.stringify(participants));
+        localStorage.setItem('uman_exp_v5', JSON.stringify(generalExpenses));
+        localStorage.setItem('uman_caisse_v5', JSON.stringify(caisseEntries));
         render();
     }
 
@@ -238,22 +251,16 @@
         const name = document.getElementById('expName').value.trim();
         const amount = parseFloat(document.getElementById('expAmount').value) || 0;
         if (!name) return;
-
-        if (editingExpId) {
-            const idx = generalExpenses.findIndex(e => e.id === editingExpId);
-            generalExpenses[idx] = { ...generalExpenses[idx], name, amount };
-            editingExpId = null;
-        } else {
-            generalExpenses.push({ id: Date.now(), name, amount });
-        }
-        resetExpForm(); save();
+        generalExpenses.push({ id: Date.now(), name, amount });
+        document.getElementById('expName').value = "";
+        document.getElementById('expAmount').value = "0";
+        save();
     }
 
     function handleCaisseSubmit() {
         const name = document.getElementById('caisseName').value.trim();
         const amount = parseFloat(document.getElementById('caisseAmount').value) || 0;
         if (!name) return;
-
         caisseEntries.push({ id: Date.now(), name, amount });
         document.getElementById('caisseName').value = "";
         document.getElementById('caisseAmount').value = "0";
@@ -292,45 +299,44 @@
         document.getElementById('cancelEdit').style.display = "none";
     }
 
-    function resetExpForm() {
-        editingExpId = null;
-        document.getElementById('expName').value = "";
-        document.getElementById('expAmount').value = "0";
-        document.getElementById('expFormTitle').innerText = "Ajouter une dépense";
-        document.getElementById('expBtn').innerText = "Ajouter le frais";
-        document.getElementById('cancelExpEdit').style.display = "none";
-    }
-
     function render() {
         const listEl = document.getElementById('list');
         const search = document.getElementById('search').value.toLowerCase();
         
         listEl.innerHTML = "";
-        let tPaid = 0, tDue = 0, tPax = 0, tAbsorbed = 0, tSpentTickets = 0, tOtherExp = 0, tCaisseAdd = 0, tAbsorbedCost = 0;
+        
+        let tPaid = 0;
+        let tExpectedRevenue = 0; // Revenu attendu (prix total des pax payants)
+        let tPax = 0;
+        let tAbsorbed = 0;
+        let tSpentTickets = 0;
+        let tOtherExp = 0;
+        let tCaisseAdd = 0;
 
         // Participants
         participants.filter(p => p.name.toLowerCase().includes(search)).slice().reverse().forEach(p => {
-            const total = p.count * p.price;
+            const totalRow = p.count * p.price;
+            
+            tPax += p.count;
+            tSpentTickets += p.spent;
+            
             let displayPaid = p.paid;
-            let reste = total - p.paid;
+            let reste = totalRow - p.paid;
 
             if(p.absorbed) {
                 tAbsorbed += p.count;
-                tAbsorbedCost += total;
-                displayPaid = total; // Dans l'affichage, on considère que c'est payé
+                displayPaid = totalRow; 
                 reste = 0;
+            } else {
+                tPaid += p.paid;
+                tExpectedRevenue += totalRow;
             }
 
-            tPaid += p.paid; 
-            tDue += total; 
-            tPax += p.count; 
-            tSpentTickets += p.spent;
-
-            const progress = total > 0 ? (displayPaid / total) * 100 : 0;
+            const progress = totalRow > 0 ? (displayPaid / totalRow) * 100 : 0;
             const div = document.createElement('div');
             div.className = 'p-item';
             div.innerHTML = `
-                ${p.absorbed ? '<div class="absorbed-tag">Absorbé par caisse</div>' : ''}
+                ${p.absorbed ? '<div class="absorbed-tag">Absorbé</div>' : ''}
                 <div class="p-header">
                     <div><div class="p-name">${p.name}</div><span style="font-size:11px;color:var(--ios-blue)">${p.count} Pax @ ${p.price}₪</span></div>
                     <div class="action-icons">
@@ -339,7 +345,7 @@
                     </div>
                 </div>
                 <div style="font-size:12px">
-                    <div style="display:flex; justify-content:space-between"><span>Dû:</span>${fmtList(total)}</div>
+                    <div style="display:flex; justify-content:space-between"><span>Dû:</span>${fmtList(totalRow)}</div>
                     <div style="display:flex; justify-content:space-between; color:var(--ios-green)"><span>Perçu:</span>${p.absorbed ? '<b>CAISSE</b>' : fmtList(p.paid)}</div>
                     <div style="display:flex; justify-content:space-between; color:${reste > 0 ? 'var(--ios-red)' : 'var(--ios-green)'}"><span>Reste:</span>${reste <= 0 ? '<b>SOLDÉ</b>' : fmtList(reste)}</div>
                 </div>
@@ -359,12 +365,12 @@
                     <div class="p-name" style="font-size:14px;">🛠️ ${e.name}</div>
                     <div class="action-icons"><i class="fa-solid fa-trash delete-icon" onclick="deleteEntry(${e.id}, 'exp')"></i></div>
                 </div>
-                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Dépense:</span>${fmtList(e.amount)}</div>
+                <div style="font-size:12px; display:flex; justify-content:space-between"><span>Montant:</span>${fmtList(e.amount)}</div>
             `;
             listEl.appendChild(div);
         });
 
-        // Entrées Caisse manuelle
+        // Caisse
         caisseEntries.forEach(c => {
             tCaisseAdd += c.amount;
             const div = document.createElement('div');
@@ -380,30 +386,29 @@
             listEl.appendChild(div);
         });
 
-        // CALCUL DE LA CAISSE :
-        // (Total que les clients doivent payer) - (Ce que ça coûte en billets) - (Frais divers) + (Apports manuels) - (Coût des absorbés)
-        const beneficeTheorique = tDue - tSpentTickets - tOtherExp;
-        const soldeCaisse = beneficeTheorique + tCaisseAdd - tAbsorbedCost;
+        // CALCUL FINAL
+        const beneficeFinal = tExpectedRevenue + tCaisseAdd - tSpentTickets - tOtherExp;
 
         document.getElementById('totalPax').innerText = tPax;
         document.getElementById('totalAbsorbed').innerText = tAbsorbed;
         document.getElementById('totalPaid').innerHTML = fmtStat(tPaid);
-        document.getElementById('totalRemaining').innerHTML = fmtStat(tDue - tPaid - tAbsorbedCost);
-        document.getElementById('totalCash').innerHTML = fmtStat(soldeCaisse);
+        document.getElementById('totalRemaining').innerHTML = fmtStat(tExpectedRevenue - tPaid);
+        document.getElementById('totalSpentTickets').innerHTML = fmtStat(tSpentTickets);
+        document.getElementById('totalOtherExp').innerHTML = fmtStat(tOtherExp);
+        document.getElementById('totalCash').innerHTML = fmtStat(beneficeFinal);
     }
 
     function exportToExcel() {
         const data = participants.map(p => ({
             "Groupe": p.name, "Pax": p.count, "Prix Unitaire": p.price, "Total Dû": p.count * p.price, 
-            "Perçu": p.paid, "Absorbé": p.absorbed ? "OUI" : "NON", "Frais Billets": p.spent
+            "Perçu": p.paid, "Absorbé": p.absorbed ? "OUI" : "NON", "Frais Billet": p.spent
         }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Participants");
-        XLSX.writeFile(wb, "Gestion_Uman_Caisse.xlsx");
+        XLSX.writeFile(wb, "Gestion_Uman_Caisse_V5.xlsx");
     }
 
-    // Garder la fonction Import Excel telle quelle
     function handleExcelImport() {
         const fileInput = document.getElementById('excelFile');
         const file = fileInput.files[0];
